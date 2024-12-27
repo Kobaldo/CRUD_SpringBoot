@@ -19,11 +19,17 @@ public class Modelo {
     @Column(nullable = false)
     private int quantidade;
 
+    public Modelo(){    }
     public Modelo(Long id, String nome, String descricao, int quantidade) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
         this.quantidade = quantidade;
+    }
+
+    public Modelo(Long id, String nome) {
+        this.id = id;
+        this.nome = nome;
     }
 
     // Getters e Setters

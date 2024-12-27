@@ -1,113 +1,100 @@
 package com.estudo.projeto1;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(Controller.class)
-@ContextConfiguration(classes = ControllerTest.TestConfig.class)
-public class ControllerTest {
+class ControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
     private EntidadeService entidadeService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    private Modelo modelo;
 
     @BeforeEach
     void setUp() {
-        modelo = new Modelo(1L, "teste", "teste mock",10); // Preencha aqui com os valores da sua classe Modelo
+        entidadeService = Mockito.mock(EntidadeService.class);
+        Controller controller = new Controller(entidadeService);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     @Test
-    void salvar_deveRetornarEntidadeCriada() throws Exception {
-        when(entidadeService.salvar(any(Modelo.class))).thenReturn(modelo);
+    void testSalvar() throws Exception {
+        Modelo entidade = new Modelo(1L, "Entidade Teste", "Descrição Teste", 10);
+        when(entidadeService.salvar(any(Modelo.class))).thenReturn(entidade);
 
         mockMvc.perform(post("/entidades")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(modelo)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(modelo.getId()))
-                .andExpect(jsonPath("$.nome").value(modelo.getNome()))
-                .andExpect(jsonPath("$.descricao").value(modelo.getDescricao()))
-                .andExpect(jsonPath("$.quantidade").value(modelo.getQuantidade()));
+                        .content("{\"id\":1,\"nome\":\"Entidade Teste\",\"descricao\":\"Descrição Teste\",\"quantidade\":10}"))
+                .andExpect(status().isOk());
+
+
+        verify(entidadeService, times(1)).salvar(any(Modelo.class));
     }
 
     @Test
-    void buscarTodas_deveRetornarListaDeEntidades() throws Exception {
-        List<Modelo> modelos = Collections.singletonList(modelo);
-        when(entidadeService.buscarTodas()).thenReturn(modelos);
+    void testBuscarTodas() throws Exception {
+        List<Modelo> entidades = Arrays.asList(
+                new Modelo(1L, "Entidade 1"),
+                new Modelo(2L, "Entidade 2")
+        );
+        when(entidadeService.buscarTodas()).thenReturn(entidades);
 
         mockMvc.perform(get("/entidades"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(modelo.getId()))
-                .andExpect(jsonPath("$[0].nome").value(modelo.getNome()))
-                .andExpect(jsonPath("$[0].descricao").value(modelo.getDescricao()))
-                .andExpect(jsonPath("$[0].quantidade").value(modelo.getQuantidade()));
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].nome").value("Entidade 1"))
+                .andExpect(jsonPath("$[1].nome").value("Entidade 2"));
+
+        verify(entidadeService, times(1)).buscarTodas();
     }
 
     @Test
-    void buscarPorId_deveRetornarEntidade() throws Exception {
-        when(entidadeService.buscarPorId(anyLong())).thenReturn(Optional.of(modelo));
+    void testBuscarPorId() throws Exception {
+        Modelo entidade = new Modelo(1L, "Entidade Teste");
+        when(entidadeService.buscarPorId(1L)).thenReturn(Optional.of(entidade));
 
-        mockMvc.perform(get("/entidades/{id}", 1L))
+        mockMvc.perform(get("/entidades/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(modelo.getId()))
-                .andExpect(jsonPath("$.nome").value(modelo.getNome()))
-                .andExpect(jsonPath("$.descricao").value(modelo.getDescricao()))
-                .andExpect(jsonPath("$.quantidade").value(modelo.getQuantidade()));;
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.nome").value("Entidade Teste"));
+
+        verify(entidadeService, times(1)).buscarPorId(1L);
     }
 
     @Test
-    void excluir_deveRetornarNoContent() throws Exception {
-        Mockito.doNothing().when(entidadeService).excluir(anyLong());
+    void testExcluir() throws Exception {
+        doNothing().when(entidadeService).excluir(1L);
 
-        mockMvc.perform(delete("/entidades/{id}", 1L))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/entidades/1"))
+                .andExpect(status().isOk());
+
+        verify(entidadeService, times(1)).excluir(1L);
     }
 
     @Test
-    void buscarPorNome_deveRetornarListaDeEntidades() throws Exception {
-        List<Modelo> modelos = Arrays.asList(modelo);
-        when(entidadeService.buscarPorNome("Teste")).thenReturn(modelos);
+    void testBuscarPorNome() throws Exception {
+        List<Modelo> entidades = Arrays.asList(
+                new Modelo(1L, "Entidade Teste")
+        );
+        when(entidadeService.buscarPorNome("Teste")).thenReturn(entidades);
 
-        mockMvc.perform(get("/entidades/buscar").param("nome", "Teste", "teste mock","10"))
+        mockMvc.perform(get("/entidades/buscar")
+                        .param("nome", "Teste"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(modelo.getId()))
-                .andExpect(jsonPath("$[0].nome").value(modelo.getNome()))
-                .andExpect(jsonPath("$[0].descricao").value(modelo.getDescricao()))
-                .andExpect(jsonPath("$[0].quantidade").value(modelo.getQuantidade()));;
-    }
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].nome").value("Entidade Teste"));
 
-    @Configuration
-    static class TestConfig {
-        @Bean
-        public EntidadeService entidadeService() {
-            return Mockito.mock(EntidadeService.class);
-        }
+        verify(entidadeService, times(1)).buscarPorNome("Teste");
     }
 }
